@@ -11,9 +11,15 @@ public class AccessFixTest extends BaseMapTest
     static class CauseBlockingSecurityManager
         extends SecurityManager
     {
+        // Only block the thread that installed us: surefire runs test classes in
+        // parallel (pom: <parallel>classes</parallel>), and a JVM-wide block makes
+        // unrelated concurrently-running test classes fail at random.
+        private final Thread owner = Thread.currentThread();
+
         @Override
         public void checkPermission(Permission perm) throws SecurityException {
-            if ("suppressAccessChecks".equals(perm.getName())) {
+            if ("suppressAccessChecks".equals(perm.getName())
+                    && Thread.currentThread() == owner) {
                 throw new SecurityException("Cannot force permission: "+perm);
             }
         }
