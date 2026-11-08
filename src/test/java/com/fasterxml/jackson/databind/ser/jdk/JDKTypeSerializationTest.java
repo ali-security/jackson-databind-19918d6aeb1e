@@ -112,10 +112,31 @@ public class JDKTypeSerializationTest
     {
         assertEquals(q("127.0.0.1:8080"),
                 MAPPER.writeValueAsString(new InetSocketAddress("127.0.0.1", 8080)));
+        assertEquals(q("127.0.0.1:8080"),
+                MAPPER.writeValueAsString(InetSocketAddress.createUnresolved("127.0.0.1", 8080)));
         assertEquals(q("google.com:6667"),
                 MAPPER.writeValueAsString(new InetSocketAddress("google.com", 6667)));
+        assertEquals(q("google.com:6667"),
+                MAPPER.writeValueAsString(InetSocketAddress.createUnresolved("google.com", 6667)));
         assertEquals(q("[2001:db8:85a3:8d3:1319:8a2e:370:7348]:443"),
                 MAPPER.writeValueAsString(new InetSocketAddress("2001:db8:85a3:8d3:1319:8a2e:370:7348", 443)));
+    }
+
+    // [databind#6185]: unresolved IPv6 literal must be bracketed like resolved one
+    public void testInetSocketAddressIPv6Unresolved() throws IOException
+    {
+        assertEquals(q("[2001:db8::1]:443"),
+                MAPPER.writeValueAsString(InetSocketAddress.createUnresolved("2001:db8::1", 443)));
+        // if host name is stored with brackets, must not bracket twice
+        assertEquals(q("[2001:db8::1]:443"),
+                MAPPER.writeValueAsString(InetSocketAddress.createUnresolved("[2001:db8::1]", 443)));
+        // and IPv6 value read by Jackson must survive a full round-trip with port intact
+        InetSocketAddress addr = MAPPER.readValue(q("[2001:db8::1]:443"), InetSocketAddress.class);
+        String json = MAPPER.writeValueAsString(addr);
+        assertEquals(q("[2001:db8::1]:443"), json);
+        InetSocketAddress result = MAPPER.readValue(json, InetSocketAddress.class);
+        assertEquals(addr.getHostName(), result.getHostName());
+        assertEquals(443, result.getPort());
     }
 
     // [JACKSON-597]
